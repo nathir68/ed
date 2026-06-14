@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-layout">
+    <aside class="sidebar">
+        <div style="margin-bottom: 32px;">
+            <h3 style="font-size: 14px; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 1px;">Student</h3>
+            <p style="font-weight: 700; font-size: 18px;">{{ session.get('user_name') }}</p>
+        </div>
+        <a href="{{ url_for('student_dashboard') }}" class="sidebar-link active">Overview</a>
+        <a href="{{ url_for('student_notes') }}" class="sidebar-link">Resource Library</a>
+        <a href="{{ url_for('student_classes') }}" class="sidebar-link">Live Sessions</a>
+    </aside>
+    
+    <div class="main-content">
+        <h1 style="font-size: 36px; margin-bottom: 8px;">Dashboard</h1>
+        <p style="color: var(--color-text-light); margin-bottom: 48px;">Welcome back to your learning portal.</p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-bottom: 48px;">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.total_notes }}</div>
+                <div class="stat-label">Available Resources</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.active_classes }}</div>
+                <div class="stat-label">Upcoming Sessions</div>
+            </div>
+        </div>
+
+        <div>
+            <h2 style="font-size: 24px; margin-bottom: 24px;">Upcoming Sessions For You</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+                {% for cls in upcoming_classes %}
+                <div style="background: var(--color-white); border: 1px solid var(--color-border); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                        <span class="resource-badge">{{ cls.subject }}</span>
+                    </div>
+                    <h3 style="font-size: 20px; margin-bottom: 8px;">{{ cls.title }}</h3>
+                    <p style="color: var(--color-text-light); margin-bottom: 24px;">By {{ cls.teacher_name }}</p>
+                    
+                    <div style="display: flex; gap: 16px; font-size: 14px; font-weight: 600; color: var(--color-text-light); margin-bottom: 24px; border-top: 1px solid var(--color-border); padding-top: 16px;">
+                        <span>{{ cls.date.strftime('%b %d, %Y') }}</span>
+                        <span>{{ cls.time }}</span>
+                        <span>{{ cls.duration }} min</span>
+                    </div>
+                    
+                    <a href="{{ cls.meeting_link }}" target="_blank" class="btn btn-primary" style="padding: 8px; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; margin: 0 auto;" title="Join Session">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+                    </a>
+                </div>
+                {% else %}
+                <div style="grid-column: 1 / -1; background: var(--color-white); border: 1px dashed var(--color-border); border-radius: 16px; padding: 48px; text-align: center;">
+                    <p style="font-size: 18px; font-weight: 600; color: var(--color-text-light);">No upcoming sessions right now.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

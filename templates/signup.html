@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="auth-container">
+    <h2 style="font-size: 32px; margin-bottom: 8px; text-align: center;">Create an Account</h2>
+    <p style="text-align: center; color: var(--color-text-light); margin-bottom: 32px;">Join as a {{ role | capitalize }}</p>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" name="name" class="form-input" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" name="email" class="form-input" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" name="password" class="form-input" required>
+        </div>
+        
+        {% if role == 'teacher' %}
+        <div class="form-group">
+            <label class="form-label">Subject Specialty</label>
+            <input type="text" name="subject" class="form-input" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Institution Name</label>
+            <input type="text" name="institution" class="form-input" required>
+        </div>
+        {% elif role == 'student' %}
+        <div class="form-group">
+            <label class="form-label">Institution Name</label>
+            <input type="text" name="institution" class="form-input" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Class / Grade</label>
+            <input type="text" name="class_grade" class="form-input" required>
+        </div>
+        {% endif %}
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
+    </form>
+</div>
+{% endblock %}

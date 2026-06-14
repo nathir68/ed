@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-container" style="padding-top: 24px; padding-bottom: 24px; display: flex; gap: 24px; height: calc(100vh - 80px);">
+    
+    <!-- Left: Video Area and Controls -->
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1 style="font-size: 24px;">Live Session</h1>
+            <span class="resource-badge" style="background: rgba(255,255,255,0.1); color: var(--color-primary); padding: 4px 12px; border-radius: 20px;">EduConnect WebRTC</span>
+        </div>
+        
+        <!-- Video Layout: Main Teacher view (Top) and Student Grid (Bottom) -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; overflow-y: auto;">
+            
+            <!-- Main Video Container (Always for the Teacher) -->
+            <div id="mainVideoContainer" style="width: 100%; height: 60%; background: var(--color-white); border-radius: 16px; overflow: hidden; position: relative; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--color-border); box-shadow: 0 4px 20px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;">
+                <div id="waitingTeacherMsg" style="color: var(--color-text-light); position: absolute; z-index: 1;">Waiting for Teacher...</div>
+            </div>
+            
+            <!-- Student Thumbnail Grid -->
+            <div id="videoGrid" style="width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-content: start;">
+            </div>
+            
+        </div>
+        
+        <!-- Media Controls -->
+        <div style="display: flex; justify-content: center; gap: 24px; padding: 16px; background: var(--color-white); border-radius: 16px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--color-border); box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+            <button id="toggleAudio" class="btn btn-secondary" style="width: 56px; height: 56px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center;" title="Toggle Microphone">
+                <svg id="micIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            </button>
+            
+            <button id="toggleVideo" class="btn btn-secondary" style="width: 56px; height: 56px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center;" title="Toggle Camera">
+                <svg id="videoIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+            </button>
+            
+            <a href="{{ url_for('teacher_dashboard') if session.get('user_role') == 'teacher' else url_for('student_dashboard') }}" class="btn" style="width: 56px; height: 56px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; background-color: var(--color-primary); color: var(--color-bg); box-shadow: 0 0 15px rgba(255,255,255,0.2);" title="End Call">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(135deg);"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Right: Chat Sidebar -->
+    <div style="width: 320px; background: var(--color-white); border: 1px solid var(--color-border); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+        <div style="padding: 16px; border-bottom: 1px solid var(--color-border); font-weight: bold; display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Meeting Chat
+        </div>
+        <div id="chatMessages" style="flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+            <div style="text-align: center; color: var(--color-text-light); font-size: 12px; margin-bottom: 8px;">Welcome to the chat!</div>
+        </div>
+        <div style="padding: 16px; border-top: 1px solid var(--color-border); display: flex; gap: 8px; background: rgba(0,0,0,0.2);">
+            <input type="text" id="chatInput" placeholder="Send a message..." style="flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); background: rgba(0,0,0,0.3); color: var(--color-text); outline: none; font-family: inherit;">
+            <button id="sendBtn" class="btn btn-primary" style="padding: 0 16px; border-radius: 8px;">Send</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+    const socket = io();
+    const ROOM_ID = '{{ room_id }}';
+    const USER_NAME = '{{ user_name }}';
+    const USER_ROLE = '{{ user_role }}';
+    
+    const mainVideoContainer = document.getElementById('mainVideoContainer');
+    const waitingTeacherMsg = document.getElementById('waitingTeacherMsg');
+    const videoGrid = document.getElementById('videoGrid');
+    
+    let localStream;
+    const peerConnections = {}; 
+    
+    const rtcConfig = {
+        'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]
+    };
+
+    // Helper to setup a video block
+    function createVideoBlock(id, name, stream, isTeacher, isLocal) {
+        const div = document.createElement('div');
+        div.id = id;
+        div.style = "position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 16px; animation: fadeIn 0.3s ease;";
+        
+        // If it's a student thumbnail, we need to enforce height since it's in a grid
+        if (!isTeacher) {
+            div.style.height = "150px";
+            div.style.background = "var(--color-white)";
+            div.style.backdropFilter = "blur(16px)";
+            div.style.border = "1px solid var(--color-border)";
+        }
+        
+        const vid = document.createElement('video');
+        vid.autoplay = true;
+        vid.playsInline = true;
+        vid.style = "width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;";
+        if (isLocal) {
+            vid.muted = true;
+            vid.style.transform = "scaleX(-1)";
+        }
+        if (stream) vid.srcObject = stream;
+        div.appendChild(vid);
+        
+        const label = document.createElement('div');
+        label.style = "position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; backdrop-filter: blur(4px); z-index: 2;";
+        label.innerText = name + (isLocal ? " (You)" : "");
+        div.appendChild(label);
+        
+        return { div, vid };
+    }
+
+    // 1. Get Camera/Mic and Join
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+            localStream = stream;
+            
+            // Render local video based on role
+            const isLocalTeacher = (USER_ROLE === 'teacher');
+            const localBlock = createVideoBlock('local-peer-container', USER_NAME, stream, isLocalTeacher, true);
+            
+            if (isLocalTeacher) {
+                waitingTeacherMsg.style.display = 'none';
+                mainVideoContainer.appendChild(localBlock.div);
+            } else {
+                videoGrid.appendChild(localBlock.div);
+            }
+
+            socket.emit('join', { room: ROOM_ID, user_name: USER_NAME, role: USER_ROLE });
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Could not access camera or microphone. Please check permissions.");
+        });
+
+    function createPeerConnection(targetSid, peerName, peerRole) {
+        if (peerConnections[targetSid]) return peerConnections[targetSid];
+        
+        const pc = new RTCPeerConnection(rtcConfig);
+        peerConnections[targetSid] = pc;
+        
+        const isRemoteTeacher = (peerRole === 'teacher');
+        const peerDivId = `peer-container-${targetSid}`;
+        
+        if (!document.getElementById(peerDivId)) {
+            const block = createVideoBlock(peerDivId, peerName, null, isRemoteTeacher, false);
+            // We store the vid element temporarily on the pc object so we can attach the stream later
+            pc.videoElement = block.vid;
+            
+            if (isRemoteTeacher) {
+                waitingTeacherMsg.style.display = 'none';
+                mainVideoContainer.appendChild(block.div);
+            } else {
+                videoGrid.appendChild(block.div);
+            }
+        }
+        
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+            });
+        }
+        
+        pc.ontrack = event => {
+            if (pc.videoElement) {
+                pc.videoElement.srcObject = event.streams[0];
+            }
+        };
+        
+        pc.onicecandidate = event => {
+            if (event.candidate) {
+                socket.emit('ice_candidate', {
+                    room: ROOM_ID,
+                    target_sid: targetSid,
+                    candidate: event.candidate
+                });
+            }
+        };
+        
+        pc.oniceconnectionstatechange = () => {
+            if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+                const el = document.getElementById(peerDivId);
+                if (el) el.remove();
+                delete peerConnections[targetSid];
+                
+                // If the remote teacher disconnected, show the waiting message again if the container is empty
+                if (isRemoteTeacher && mainVideoContainer.children.length <= 1) {
+                    waitingTeacherMsg.style.display = 'block';
+                }
+            }
+        };
+        
+        return pc;
+    }
+
+    // --- Signaling logic (Multi-party Mesh) ---
+    
+    socket.on('user_joined', async (data) => {
+        const newSid = data.sid;
+        const peerName = data.user_name;
+        const peerRole = data.role;
+        
+        const pc = createPeerConnection(newSid, peerName, peerRole);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        
+        socket.emit('offer', {
+            room: ROOM_ID,
+            target_sid: newSid,
+            offer: offer,
+            sender_name: USER_NAME,
+            sender_role: USER_ROLE
+        });
+    });
+
+    socket.on('offer', async (data) => {
+        const senderSid = data.sender_sid;
+        const peerName = data.sender_name || "Participant";
+        const peerRole = data.sender_role || "student";
+        
+        const pc = createPeerConnection(senderSid, peerName, peerRole);
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        
+        socket.emit('answer', {
+            room: ROOM_ID,
+            target_sid: senderSid,
+            answer: answer
+        });
+    });
+
+    socket.on('answer', async (data) => {
+        const senderSid = data.sender_sid;
+        const pc = peerConnections[senderSid];
+        if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        }
+    });
+
+    socket.on('ice_candidate', async (data) => {
+        const senderSid = data.sender_sid;
+        const pc = peerConnections[senderSid];
+        if (pc) {
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (e) {
+                console.error("Error adding ice candidate", e);
+            }
+        }
+    });
+    
+    // --- Chat Logic ---
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatMessages = document.getElementById('chatMessages');
+
+    function appendMessage(name, text, isSelf) {
+        const div = document.createElement('div');
+        div.style = `padding: 8px 12px; border-radius: 12px; max-width: 85%; word-break: break-word; font-size: 14px; animation: fadeIn 0.2s ease; ${isSelf ? 'background: var(--color-primary); color: var(--color-bg); align-self: flex-end;' : 'background: rgba(255,255,255,0.1); color: var(--color-text); border: 1px solid var(--color-border); align-self: flex-start;'}`;
+        div.innerHTML = `<strong style="font-size: 11px; opacity: 0.8; display: block; margin-bottom: 2px;">${name}</strong>${text}`;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function sendMessage() {
+        const text = chatInput.value.trim();
+        if (text) {
+            socket.emit('chat_message', {
+                room: ROOM_ID,
+                sender_name: USER_NAME,
+                message: text
+            });
+            appendMessage('You', text, true);
+            chatInput.value = '';
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    socket.on('chat_message', (data) => {
+        appendMessage(data.sender_name, data.message, false);
+    });
+
+    // --- Media Controls ---
+    document.getElementById('toggleAudio').onclick = () => {
+        if (!localStream) return;
+        const track = localStream.getAudioTracks()[0];
+        if (track) {
+            track.enabled = !track.enabled;
+            const btn = document.getElementById('toggleAudio');
+            if (track.enabled) {
+                btn.classList.replace('btn-primary', 'btn-secondary');
+                document.getElementById('micIcon').innerHTML = '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>';
+            } else {
+                btn.classList.replace('btn-secondary', 'btn-primary');
+                document.getElementById('micIcon').innerHTML = '<line x1="2" y1="2" x2="22" y2="22"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><line x1="12" y1="19" x2="12" y2="22"/>';
+            }
+        }
+    };
+    
+    document.getElementById('toggleVideo').onclick = () => {
+        if (!localStream) return;
+        const track = localStream.getVideoTracks()[0];
+        if (track) {
+            track.enabled = !track.enabled;
+            const btn = document.getElementById('toggleVideo');
+            if (track.enabled) {
+                btn.classList.replace('btn-primary', 'btn-secondary');
+                document.getElementById('videoIcon').innerHTML = '<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>';
+            } else {
+                btn.classList.replace('btn-secondary', 'btn-primary');
+                document.getElementById('videoIcon').innerHTML = '<path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L22 8v8"/><line x1="2" y1="2" x2="22" y2="22"/>';
+            }
+        }
+    };
+</script>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}

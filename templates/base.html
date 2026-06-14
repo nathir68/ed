@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduConnect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="page-container nav-content">
+            <a href="{{ url_for('index') }}" class="logo">
+                <div class="logo-icon">E</div>
+                EduConnect
+            </a>
+            <div class="nav-links">
+                <a href="javascript:history.back()" class="nav-link" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; color: var(--color-text-light); border-radius: 50%; background: var(--color-bg);" title="Go Back">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </a>
+                {% if session.get('user_id') %}
+                    {% if session.get('user_role') == 'teacher' %}
+                        <a href="{{ url_for('teacher_dashboard') }}" class="nav-link">Dashboard</a>
+                    {% else %}
+                        <a href="{{ url_for('student_dashboard') }}" class="nav-link">Dashboard</a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="btn btn-secondary" style="padding: 8px 16px;">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="nav-link">Login</a>
+                    <a href="{{ url_for('signup', role='student') }}" class="btn btn-primary" style="padding: 8px 16px;">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="page-container" style="margin-top: 24px;">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
