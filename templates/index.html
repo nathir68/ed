@@ -6,9 +6,10 @@
         <h1>Learn. Connect. <span>Succeed.</span></h1>
         <p>The simplest way for educators to share resources and host interactive sessions, all in one professional space.</p>
         
-        <div style="display: flex; gap: 16px; justify-content: center;">
+        <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
             <a href="{{ url_for('signup', role='teacher') }}" class="btn btn-primary">Join as Educator</a>
             <a href="{{ url_for('signup', role='student') }}" class="btn btn-secondary">Join as Student</a>
+            <a href="{{ url_for('signup', role='college_admin') }}" class="btn btn-secondary" style="border-color: var(--color-text-light); color: var(--color-text-light);">Register Institution</a>
         </div>
     </div>
 </section>

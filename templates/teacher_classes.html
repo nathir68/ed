@@ -29,6 +29,27 @@
                             <label class="form-label">Subject</label>
                             <input type="text" name="subject" class="form-input" value="{{ session.get('user_subject', '') }}" required>
                         </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">Department</label>
+                                <select name="department_id" id="department_id" class="form-input" required>
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Year of Study</label>
+                                <select name="year_of_study" class="form-input" required>
+                                    <option value="">Select Year</option>
+                                    <option value="1st Year">1st Year</option>
+                                    <option value="2nd Year">2nd Year</option>
+                                    <option value="3rd Year">3rd Year</option>
+                                    <option value="4th Year">4th Year</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                             <div class="form-group">
                                 <label class="form-label">Date</label>
@@ -70,4 +91,30 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentSelect = document.getElementById('department_id');
+    const collegeId = "{{ college_id }}";
+    
+    if (collegeId && collegeId !== 'None') {
+        fetch('/api/departments/' + collegeId)
+            .then(response => response.json())
+            .then(data => {
+                departmentSelect.innerHTML = '<option value="">Select a Department</option>';
+                data.departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept.id;
+                    option.textContent = dept.name;
+                    departmentSelect.appendChild(option);
+                });
+            })
+            .catch(err => {
+                departmentSelect.innerHTML = '<option value="">Error loading</option>';
+            });
+    } else {
+        departmentSelect.innerHTML = '<option value="">No College Assigned</option>';
+    }
+});
+</script>
 {% endblock %}

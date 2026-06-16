@@ -1,6 +1,6 @@
 import os
 import uuid
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from database import get_db_connection
@@ -19,6 +19,27 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# ---------- API ROUTES ----------
+@app.route('/api/colleges')
+def api_colleges():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, name FROM colleges ORDER BY name")
+    colleges = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({"colleges": colleges})
+
+@app.route('/api/departments/<int:college_id>')
+def api_departments(college_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, name FROM departments WHERE college_id = %s ORDER BY name", (college_id,))
+    departments = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify({"departments": departments})
 
 # ---------- ROUTES ----------
 
@@ -48,11 +69,14 @@ def login():
             session['user_id'] = user['id']
             session['user_name'] = user['name']
             session['user_role'] = user['role']
-            session['user_subject'] = user['subject']
-            session['user_class_grade'] = user['class_grade']
+            session['user_college'] = user['college_id']
+            session['user_department'] = user['department_id']
+            session['user_year'] = user.get('year_of_study')
             
             if user['role'] == 'teacher':
                 return redirect(url_for('teacher_dashboard'))
+            elif user['role'] in ['admin', 'college_admin', 'superadmin']:
+                return redirect(url_for('admin_dashboard'))
             else:
                 return redirect(url_for('student_dashboard'))
         else:
@@ -61,9 +85,13 @@ def login():
 
     return render_template('login.html')
 
+@app.route('/signup')
+def generic_signup():
+    return redirect(url_for('index'))
+
 @app.route('/signup/<role>', methods=['GET', 'POST'])
 def signup(role):
-    if role not in ['teacher', 'student']:
+    if role not in ['teacher', 'student', 'college_admin']:
         return redirect(url_for('index'))
         
     if request.method == 'POST':
@@ -72,10 +100,6 @@ def signup(role):
         password = request.form['password']
         hashed_password = generate_password_hash(password)
         
-        subject = request.form.get('subject', None)
-        institution = request.form.get('institution', None)
-        class_grade = request.form.get('class_grade', None)
-        
         conn = get_db_connection()
         if not conn:
             flash("Database connection error.", "error")
@@ -83,10 +107,27 @@ def signup(role):
             
         cursor = conn.cursor()
         try:
+            if role == 'college_admin':
+                college_name = request.form.get('college_name')
+                # Check if college exists
+                cursor.execute("SELECT id FROM colleges WHERE name = %s", (college_name,))
+                if cursor.fetchone():
+                    flash("Institution name already exists. Please login or choose another.", "error")
+                    return redirect(url_for('signup', role=role))
+                    
+                cursor.execute("INSERT INTO colleges (name) VALUES (%s)", (college_name,))
+                college_id = cursor.lastrowid
+                department_id = None
+                year_of_study = None
+            else:
+                college_id = request.form.get('college_id')
+                department_id = request.form.get('department_id')
+                year_of_study = request.form.get('year_of_study')
+
             cursor.execute("""
-                INSERT INTO users (name, email, password_hash, role, subject, institution, class_grade)
+                INSERT INTO users (name, email, password_hash, role, college_id, department_id, year_of_study)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (name, email, hashed_password, role, subject, institution, class_grade))
+            """, (name, email, hashed_password, role, college_id, department_id, year_of_study))
             conn.commit()
             flash("Registration successful. Please login.", "success")
             return redirect(url_for('login'))
@@ -142,19 +183,19 @@ def student_dashboard():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute("SELECT COUNT(*) as count FROM resources")
+    cursor.execute("SELECT COUNT(*) as count FROM resources WHERE department_id = %s AND year_of_study = %s", (session.get('user_department'), session.get('user_year')))
     total_notes = cursor.fetchone()['count']
     
-    cursor.execute("SELECT COUNT(*) as count FROM classes WHERE date >= CURDATE()")
+    cursor.execute("SELECT COUNT(*) as count FROM classes WHERE date >= CURDATE() AND department_id = %s AND year_of_study = %s", (session.get('user_department'), session.get('user_year')))
     active_classes = cursor.fetchone()['count']
     
     cursor.execute("""
         SELECT c.*, u.name as teacher_name 
         FROM classes c 
         JOIN users u ON c.teacher_id = u.id 
-        WHERE c.date >= CURDATE() 
+        WHERE c.date >= CURDATE() AND c.department_id = %s AND c.year_of_study = %s
         ORDER BY c.date ASC, c.time ASC LIMIT 3
-    """)
+    """, (session.get('user_department'), session.get('user_year')))
     upcoming_classes = cursor.fetchall()
     
     cursor.close()
@@ -167,6 +208,163 @@ def student_dashboard():
     
     return render_template('student_dashboard.html', stats=stats, upcoming_classes=upcoming_classes)
 
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    role = session.get('user_role')
+    if 'user_id' not in session or role not in ['admin', 'college_admin', 'superadmin']:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if role == 'superadmin':
+        cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'student'")
+        total_students = cursor.fetchone()['count']
+        cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'teacher'")
+        total_teachers = cursor.fetchone()['count']
+        cursor.execute("SELECT COUNT(*) as count FROM resources")
+        total_resources = cursor.fetchone()['count']
+        cursor.execute("SELECT COUNT(*) as count FROM classes")
+        total_classes = cursor.fetchone()['count']
+    else:
+        # college_admin logic
+        col_id = session.get('user_college')
+        cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'student' AND college_id = %s", (col_id,))
+        total_students = cursor.fetchone()['count']
+        cursor.execute("SELECT COUNT(*) as count FROM users WHERE role = 'teacher' AND college_id = %s", (col_id,))
+        total_teachers = cursor.fetchone()['count']
+        cursor.execute("""
+            SELECT COUNT(r.id) as count FROM resources r
+            JOIN users u ON r.teacher_id = u.id WHERE u.college_id = %s
+        """, (col_id,))
+        total_resources = cursor.fetchone()['count']
+        cursor.execute("""
+            SELECT COUNT(c.id) as count FROM classes c
+            JOIN users u ON c.teacher_id = u.id WHERE u.college_id = %s
+        """, (col_id,))
+        total_classes = cursor.fetchone()['count']
+    
+    cursor.close()
+    conn.close()
+    
+    stats = {
+        'students': total_students,
+        'teachers': total_teachers,
+        'resources': total_resources,
+        'classes': total_classes
+    }
+    
+    return render_template('admin_dashboard.html', stats=stats, is_superadmin=(role=='superadmin'))
+
+@app.route('/admin/users')
+def admin_users():
+    role = session.get('user_role')
+    if 'user_id' not in session or role not in ['admin', 'college_admin', 'superadmin']:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if role == 'superadmin':
+        cursor.execute("""
+            SELECT u.*, c.name as college_name 
+            FROM users u 
+            LEFT JOIN colleges c ON u.college_id = c.id
+            WHERE u.role != 'superadmin' 
+            ORDER BY u.created_at DESC
+        """)
+    else:
+        cursor.execute("""
+            SELECT u.*, c.name as college_name 
+            FROM users u 
+            LEFT JOIN colleges c ON u.college_id = c.id
+            WHERE u.role NOT IN ('superadmin', 'college_admin') AND u.college_id = %s 
+            ORDER BY u.created_at DESC
+        """, (session.get('user_college'),))
+        
+    users = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    return render_template('admin_users.html', users=users, is_superadmin=(role=='superadmin'))
+
+@app.route('/admin/user/<int:id>/delete', methods=['POST'])
+def admin_delete_user(id):
+    role = session.get('user_role')
+    if 'user_id' not in session or role not in ['admin', 'college_admin', 'superadmin']:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    if role == 'superadmin':
+        cursor.execute("DELETE FROM live_presentations WHERE teacher_id = %s", (id,))
+        cursor.execute("DELETE FROM users WHERE id = %s AND role != 'superadmin'", (id,))
+    else:
+        # Ensure college admin can only delete their own college users
+        cursor.execute("DELETE FROM live_presentations WHERE teacher_id = %s AND teacher_id IN (SELECT id FROM users WHERE college_id = %s)", (id, session.get('user_college')))
+        cursor.execute("DELETE FROM users WHERE id = %s AND college_id = %s AND role NOT IN ('superadmin', 'college_admin')", (id, session.get('user_college')))
+        
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    flash("User deleted successfully.", "success")
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/departments', methods=['GET', 'POST'])
+def admin_departments():
+    role = session.get('user_role')
+    if 'user_id' not in session or role not in ['college_admin']:
+        if role in ['admin', 'superadmin']:
+            flash("Superadmins cannot directly manage a specific college's courses from here yet.", "info")
+            return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('login'))
+        
+    college_id = session.get('user_college')
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if request.method == 'POST':
+        dept_name = request.form.get('department_name')
+        if dept_name:
+            try:
+                cursor.execute("INSERT INTO departments (college_id, name) VALUES (%s, %s)", (college_id, dept_name))
+                conn.commit()
+                flash("Department added successfully.", "success")
+            except Exception as e:
+                conn.rollback()
+                flash("Failed to add department.", "error")
+                
+    cursor.execute("SELECT * FROM departments WHERE college_id = %s ORDER BY name", (college_id,))
+    departments = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    
+    return render_template('admin_departments.html', departments=departments)
+
+@app.route('/admin/department/<int:id>/delete', methods=['POST'])
+def admin_delete_department(id):
+    role = session.get('user_role')
+    if 'user_id' not in session or role not in ['college_admin']:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM departments WHERE id = %s AND college_id = %s", (id, session.get('user_college')))
+        conn.commit()
+        flash("Department deleted successfully.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash("Error deleting department. It may be in use.", "error")
+    finally:
+        cursor.close()
+        conn.close()
+        
+    return redirect(url_for('admin_departments'))
+
 @app.route('/teacher/upload', methods=['GET', 'POST'])
 def teacher_upload():
     if 'user_id' not in session or session.get('user_role') != 'teacher':
@@ -176,7 +374,9 @@ def teacher_upload():
         title = request.form['title']
         subject = request.form['subject']
         description = request.form.get('description', '')
-        target_class = request.form.get('target_class', 'all')
+        
+        department_id = request.form.get('department_id')
+        year_of_study = request.form.get('year_of_study')
         tags = request.form.get('tags', '')
         
         if 'file' not in request.files:
@@ -200,9 +400,9 @@ def teacher_upload():
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO resources (teacher_id, title, subject, description, target_class, file_url, file_type, file_size, tags)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (session['user_id'], title, subject, description, target_class, file_url, file_type, file_size, tags))
+                INSERT INTO resources (teacher_id, title, subject, description, department_id, year_of_study, file_url, file_type, file_size, tags)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (session['user_id'], title, subject, description, department_id, year_of_study, file_url, file_type, file_size, tags))
             conn.commit()
             cursor.close()
             conn.close()
@@ -210,7 +410,7 @@ def teacher_upload():
             flash("Resource uploaded successfully!", "success")
             return redirect(url_for('teacher_dashboard'))
             
-    return render_template('teacher_upload.html')
+    return render_template('teacher_upload.html', college_id=session.get('user_college'))
 
 @app.route('/student/notes')
 def student_notes():
@@ -224,8 +424,9 @@ def student_notes():
         SELECT r.*, u.name as teacher_name 
         FROM resources r
         JOIN users u ON r.teacher_id = u.id
+        WHERE r.department_id = %s AND r.year_of_study = %s
         ORDER BY r.created_at DESC
-    """)
+    """, (session.get('user_department'), session.get('user_year')))
     notes = cursor.fetchall()
     
     cursor.close()
@@ -249,14 +450,16 @@ def teacher_classes():
         date = request.form['date']
         time = request.form['time']
         duration = request.form['duration']
+        department_id = request.form.get('department_id')
+        year_of_study = request.form.get('year_of_study')
         platform = 'Native'
         room_id = uuid.uuid4().hex
         meeting_link = f"/meeting/{room_id}"
         
         cursor.execute("""
-            INSERT INTO classes (teacher_id, title, subject, date, time, duration, platform, meeting_link)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (session['user_id'], title, subject, date, time, duration, platform, meeting_link))
+            INSERT INTO classes (teacher_id, title, subject, date, time, duration, platform, meeting_link, department_id, year_of_study)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (session['user_id'], title, subject, date, time, duration, platform, meeting_link, department_id, year_of_study))
         conn.commit()
         flash("Live session scheduled successfully!", "success")
         return redirect(url_for('teacher_classes'))
@@ -267,7 +470,7 @@ def teacher_classes():
     cursor.close()
     conn.close()
     
-    return render_template('teacher_classes.html', classes=classes)
+    return render_template('teacher_classes.html', classes=classes, college_id=session.get('user_college'))
 
 @app.route('/student/classes')
 def student_classes():
@@ -281,9 +484,9 @@ def student_classes():
         SELECT c.*, u.name as teacher_name 
         FROM classes c
         JOIN users u ON c.teacher_id = u.id
-        WHERE c.date >= CURDATE()
+        WHERE c.date >= CURDATE() AND c.department_id = %s AND c.year_of_study = %s
         ORDER BY c.date ASC, c.time ASC
-    """)
+    """, (session.get('user_department'), session.get('user_year')))
     classes = cursor.fetchall()
     
     cursor.close()
@@ -330,14 +533,11 @@ def teacher_delete_resource(id):
     resource = cursor.fetchone()
     
     if resource:
-        # Delete dependent live presentations first to satisfy foreign key constraints
         cursor.execute("DELETE FROM live_presentations WHERE resource_id = %s", (id,))
-        
         cursor.execute("DELETE FROM resources WHERE id = %s", (id,))
         conn.commit()
         flash("Resource deleted successfully.", "success")
         
-        # Optionally remove the physical file here
         file_path = resource['file_url'].lstrip('/')
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -439,7 +639,7 @@ def student_presentation(room_code):
 @app.route('/api/presentation/end/<room_code>', methods=['POST'])
 def end_presentation(room_code):
     if session.get('user_role') != 'teacher':
-        return {"error": "Unauthorized"}, 401
+        return jsonify({"error": "Unauthorized"}), 401
         
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -449,7 +649,7 @@ def end_presentation(room_code):
     conn.close()
     
     socketio.emit('presentation_ended', {'room': room_code}, to=room_code)
-    return {"status": "success"}
+    return jsonify({"status": "success"})
 
 # ---------- WEBRTC & PRESENTATION SIGNALING ----------
 
@@ -479,7 +679,6 @@ def on_join(data):
     user_name = data.get('user_name', 'Anonymous')
     role = data.get('role', 'student')
     join_room(room)
-    # Broadcast to others in the room that a user has joined
     emit('user_joined', {'sid': request.sid, 'user_name': user_name, 'role': role}, to=room, include_self=False)
 
 @socketio.on('offer')

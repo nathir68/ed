@@ -27,7 +27,7 @@ def create_database():
                 name VARCHAR(100) NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
-                role ENUM('teacher', 'student') NOT NULL,
+                role ENUM('teacher', 'student', 'admin') NOT NULL,
                 subject VARCHAR(100),
                 institution VARCHAR(150),
                 class_grade VARCHAR(50),

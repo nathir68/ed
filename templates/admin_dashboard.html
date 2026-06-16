@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - CLS Listener{% endblock %}
+
+{% block content %}
+<div class="page-container" style="padding-top: 40px; padding-bottom: 80px;">
+    <div class="hero" style="padding: 40px 0; border-bottom: none; background: transparent; text-align: left;">
+        <h1 style="font-size: 48px;">Welcome Admin, <span>{{ session.user_name }}</span></h1>
+        <p>Here is the overview of the entire EduConnect platform.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 48px;">
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(255, 51, 51, 0.1), rgba(20, 0, 0, 0.8)); border-color: var(--color-primary);">
+            <div class="stat-label" style="color: var(--color-primary);">Total Students</div>
+            <div class="stat-value" style="color: var(--color-text);">{{ stats.students }}</div>
+        </div>
+        
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(51, 153, 255, 0.1), rgba(20, 0, 0, 0.8)); border-color: #3399ff;">
+            <div class="stat-label" style="color: #3399ff;">Total Teachers</div>
+            <div class="stat-value" style="color: var(--color-text);">{{ stats.teachers }}</div>
+        </div>
+        
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(255, 153, 51, 0.1), rgba(20, 0, 0, 0.8)); border-color: #ff9933;">
+            <div class="stat-label" style="color: #ff9933;">Resources Shared</div>
+            <div class="stat-value" style="color: var(--color-text);">{{ stats.resources }}</div>
+        </div>
+        
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(51, 204, 102, 0.1), rgba(20, 0, 0, 0.8)); border-color: #33cc66;">
+            <div class="stat-label" style="color: #33cc66;">Live Classes</div>
+            <div class="stat-value" style="color: var(--color-text);">{{ stats.classes }}</div>
+        </div>
+    </div>
+
+    <div style="margin-top: 48px;">
+        <h2 style="margin-bottom: 24px;">Quick Actions</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+            <a href="{{ url_for('admin_users') }}" class="resource-card" style="text-decoration: none; align-items: center; justify-content: center; min-height: 150px; border-color: var(--color-primary);">
+                <div style="background: var(--color-primary-light); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <h3 style="color: var(--color-text); font-size: 24px;">Manage Users</h3>
+                <p style="color: var(--color-text-light); text-align: center; margin-top: 8px;">View, filter, or delete teacher and student accounts.</p>
+            </a>
+            
+            {% if session.get('user_role') == 'college_admin' %}
+            <a href="{{ url_for('admin_departments') }}" class="resource-card" style="text-decoration: none; align-items: center; justify-content: center; min-height: 150px; border-color: #33cc66;">
+                <div style="background: rgba(51, 204, 102, 0.1); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#33cc66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                </div>
+                <h3 style="color: var(--color-text); font-size: 24px;">Manage Courses</h3>
+                <p style="color: var(--color-text-light); text-align: center; margin-top: 8px;">Add or remove departments for your college.</p>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

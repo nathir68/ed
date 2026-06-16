@@ -3,7 +3,13 @@
 {% block content %}
 <div class="auth-container">
     <h2 style="font-size: 32px; margin-bottom: 8px; text-align: center;">Create an Account</h2>
-    <p style="text-align: center; color: var(--color-text-light); margin-bottom: 32px;">Join as a {{ role | capitalize }}</p>
+    <p style="text-align: center; color: var(--color-text-light); margin-bottom: 32px;">
+        {% if role == 'college_admin' %}
+            Register your Institution
+        {% else %}
+            Join as a {{ role | capitalize }}
+        {% endif %}
+    </p>
     
     <form method="POST">
         <div class="form-group">
@@ -19,27 +25,91 @@
             <input type="password" name="password" class="form-input" required>
         </div>
         
+        {% if role == 'college_admin' %}
+        <div class="form-group">
+            <label class="form-label">Institution / College Name</label>
+            <input type="text" name="college_name" class="form-input" placeholder="e.g. Test Institute of Technology" required>
+        </div>
+        {% else %}
+        <div class="form-group">
+            <label class="form-label">College</label>
+            <select name="college_id" id="college_id" class="form-input" required>
+                <option value="">Select a College</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Department</label>
+            <select name="department_id" id="department_id" class="form-input" required disabled>
+                <option value="">Select a Department</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Year of Study</label>
+            <select name="year_of_study" class="form-input" required>
+                <option value="">Select Year</option>
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+
         {% if role == 'teacher' %}
         <div class="form-group">
             <label class="form-label">Subject Specialty</label>
             <input type="text" name="subject" class="form-input" required>
         </div>
-        <div class="form-group">
-            <label class="form-label">Institution Name</label>
-            <input type="text" name="institution" class="form-input" required>
-        </div>
-        {% elif role == 'student' %}
-        <div class="form-group">
-            <label class="form-label">Institution Name</label>
-            <input type="text" name="institution" class="form-input" required>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Class / Grade</label>
-            <input type="text" name="class_grade" class="form-input" required>
-        </div>
+        {% endif %}
         {% endif %}
         
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+            {% if role == 'college_admin' %}Register Institution{% else %}Sign Up{% endif %}
+        </button>
     </form>
 </div>
+
+{% if role != 'college_admin' %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const collegeSelect = document.getElementById('college_id');
+    const departmentSelect = document.getElementById('department_id');
+
+    // Fetch colleges
+    fetch('/api/colleges')
+        .then(response => response.json())
+        .then(data => {
+            data.colleges.forEach(college => {
+                const option = document.createElement('option');
+                option.value = college.id;
+                option.textContent = college.name;
+                collegeSelect.appendChild(option);
+            });
+        });
+
+    // Fetch departments when college changes
+    collegeSelect.addEventListener('change', function() {
+        const collegeId = this.value;
+        departmentSelect.innerHTML = '<option value="">Select a Department</option>';
+        if (collegeId) {
+            departmentSelect.disabled = false;
+            fetch('/api/departments/' + collegeId)
+                .then(response => response.json())
+                .then(data => {
+                    data.departments.forEach(dept => {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        departmentSelect.appendChild(option);
+                    });
+                });
+        } else {
+            departmentSelect.disabled = true;
+        }
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

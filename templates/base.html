@@ -21,6 +21,8 @@
                 {% if session.get('user_id') %}
                     {% if session.get('user_role') == 'teacher' %}
                         <a href="{{ url_for('teacher_dashboard') }}" class="nav-link">Dashboard</a>
+                    {% elif session.get('user_role') in ['admin', 'college_admin', 'superadmin'] %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="nav-link">Admin Dashboard</a>
                     {% else %}
                         <a href="{{ url_for('student_dashboard') }}" class="nav-link">Dashboard</a>
                     {% endif %}
