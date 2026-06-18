@@ -22,6 +22,7 @@
                     <th style="padding: 16px; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Name</th>
                     <th style="padding: 16px; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Email</th>
                     <th style="padding: 16px; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Role</th>
+                    <th style="padding: 16px; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Status</th>
                     <th style="padding: 16px; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Institution</th>
                     <th style="padding: 16px; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Joined</th>
                     <th style="padding: 16px; text-align: right; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Actions</th>
@@ -44,6 +45,19 @@
                             <span style="background: rgba(51, 204, 102, 0.15); color: #33cc66; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase;">Teacher</span>
                         {% else %}
                             <span style="background: rgba(51, 153, 255, 0.15); color: #3399ff; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase;">Student</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 16px;">
+                        {% if user.is_online %}
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #10b981;"></div>
+                                <span style="font-size: 14px; color: var(--color-text);">Online</span>
+                            </div>
+                        {% else %}
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #9ca3af;"></div>
+                                <span style="font-size: 14px; color: var(--color-text-light);">Offline</span>
+                            </div>
                         {% endif %}
                     </td>
                     <td style="padding: 16px; color: var(--color-text-light);">{{ user.institution or 'N/A' }}</td>

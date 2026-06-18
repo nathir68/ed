@@ -1,6 +1,6 @@
 import os
 import uuid
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, g
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from database import get_db_connection
@@ -19,6 +19,45 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def create_notification(cursor, department_id, year_of_study, message, link):
+    cursor.execute("""
+        SELECT id FROM users 
+        WHERE role = 'student' AND department_id = %s AND year_of_study = %s
+    """, (department_id, year_of_study))
+    students = cursor.fetchall()
+    # Fetchall gives dicts because we pass cursor=conn.cursor(dictionary=True) in most places, 
+    # but let's be safe and access by dict or tuple.
+    for student in students:
+        user_id = student['id'] if isinstance(student, dict) else student[0]
+        cursor.execute("""
+            INSERT INTO notifications (user_id, message, link)
+            VALUES (%s, %s, %s)
+        """, (user_id, message, link))
+
+@app.before_request
+def before_request_handler():
+    g.notifications = []
+    g.is_verified = True
+    if 'user_id' in session:
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor(dictionary=True)
+            try:
+                cursor.execute("SELECT is_verified FROM users WHERE id = %s", (session['user_id'],))
+                user = cursor.fetchone()
+                if user:
+                    g.is_verified = user.get('is_verified', True)
+                    
+                cursor.execute("UPDATE users SET last_active = NOW() WHERE id = %s", (session['user_id'],))
+                cursor.execute("SELECT * FROM notifications WHERE user_id = %s AND is_read = FALSE ORDER BY created_at DESC", (session['user_id'],))
+                g.notifications = cursor.fetchall()
+                conn.commit()
+            except Exception as e:
+                pass
+            finally:
+                cursor.close()
+                conn.close()
 
 # ---------- API ROUTES ----------
 @app.route('/api/colleges')
@@ -43,9 +82,47 @@ def api_departments(college_id):
 
 # ---------- ROUTES ----------
 
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        message = request.form.get('message')
+        
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO contact_messages (name, email, message) VALUES (%s, %s, %s)", (name, email, message))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            flash("Your message has been sent successfully!", "success")
+        except Exception as e:
+            flash("An error occurred while sending your message. Please try again later.", "error")
+            
+        return redirect(url_for('contact'))
+        
+    return render_template('contact.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -85,9 +162,86 @@ def login():
 
     return render_template('login.html')
 
+import random
+from datetime import datetime, timedelta
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+            user = cursor.fetchone()
+            if user:
+                otp = str(random.randint(100000, 999999))
+                expires_at = datetime.now() + timedelta(minutes=15)
+                cursor.execute("INSERT INTO password_resets (email, otp, expires_at) VALUES (%s, %s, %s)", (email, otp, expires_at))
+                conn.commit()
+                # Simulate sending email
+                flash(f"OTP sent to your email! (Simulation: Your OTP is {otp})", "success")
+                cursor.close()
+                conn.close()
+                return redirect(url_for('verify_otp', email=email))
+            else:
+                flash("Email not found in our system.", "error")
+            cursor.close()
+            conn.close()
+    return render_template('forgot_password.html')
+
+@app.route('/verify-otp', methods=['GET', 'POST'])
+def verify_otp():
+    email = request.args.get('email')
+    if request.method == 'POST':
+        email = request.form['email']
+        otp = request.form['otp']
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT id FROM password_resets WHERE email = %s AND otp = %s AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1", (email, otp))
+            reset = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            if reset:
+                flash("OTP verified. Please reset your password.", "success")
+                return redirect(url_for('reset_password', email=email, otp=otp))
+            else:
+                flash("Invalid or expired OTP.", "error")
+    return render_template('verify_otp.html', email=email)
+
+@app.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    email = request.args.get('email')
+    otp = request.args.get('otp')
+    if request.method == 'POST':
+        email = request.form['email']
+        otp = request.form['otp']
+        password = request.form['password']
+        
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT id FROM password_resets WHERE email = %s AND otp = %s AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1", (email, otp))
+            reset = cursor.fetchone()
+            if reset:
+                hashed_password = generate_password_hash(password)
+                cursor.execute("UPDATE users SET password_hash = %s WHERE email = %s", (hashed_password, email))
+                cursor.execute("DELETE FROM password_resets WHERE email = %s", (email,))
+                conn.commit()
+                flash("Password successfully reset! You can now login.", "success")
+                cursor.close()
+                conn.close()
+                return redirect(url_for('login'))
+            else:
+                flash("Invalid or expired reset session. Please try again.", "error")
+            cursor.close()
+            conn.close()
+    return render_template('reset_password.html', email=email, otp=otp)
+
 @app.route('/signup')
 def generic_signup():
-    return redirect(url_for('index'))
+    return render_template('role_selection.html')
 
 @app.route('/signup/<role>', methods=['GET', 'POST'])
 def signup(role):
@@ -124,12 +278,15 @@ def signup(role):
                 department_id = request.form.get('department_id')
                 year_of_study = request.form.get('year_of_study')
 
+            verification_token = uuid.uuid4().hex
             cursor.execute("""
-                INSERT INTO users (name, email, password_hash, role, college_id, department_id, year_of_study)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (name, email, hashed_password, role, college_id, department_id, year_of_study))
+                INSERT INTO users (name, email, password_hash, role, college_id, department_id, year_of_study, is_verified, verification_token)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (name, email, hashed_password, role, college_id, department_id, year_of_study, False, verification_token))
             conn.commit()
-            flash("Registration successful. Please login.", "success")
+            
+            verify_url = url_for('verify_email', token=verification_token, _external=True)
+            flash(f"Registration successful. For testing, please <a href='{verify_url}'>click here to verify your email</a>.", "success")
             return redirect(url_for('login'))
         except Exception as e:
             conn.rollback()
@@ -140,10 +297,37 @@ def signup(role):
             
     return render_template('signup.html', role=role)
 
+@app.route('/verify-email/<token>')
+def verify_email(token):
+    conn = get_db_connection()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE verification_token = %s AND is_verified = FALSE", (token,))
+        user = cursor.fetchone()
+        if user:
+            cursor.execute("UPDATE users SET is_verified = TRUE, verification_token = NULL WHERE id = %s", (user[0],))
+            conn.commit()
+            flash("Your email has been successfully verified! You can now access all features.", "success")
+        else:
+            flash("Invalid or expired verification link.", "error")
+        cursor.close()
+        conn.close()
+    return redirect(url_for('login'))
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
+
+@app.route('/notifications/clear')
+def clear_notifications():
+    if 'user_id' in session:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE notifications SET is_read = TRUE WHERE user_id = %s", (session['user_id'],))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/teacher/dashboard')
 def teacher_dashboard():
@@ -286,6 +470,14 @@ def admin_users():
     cursor.close()
     conn.close()
     
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    for user in users:
+        if user.get('last_active'):
+            user['is_online'] = (now - user['last_active']) < timedelta(minutes=5)
+        else:
+            user['is_online'] = False
+            
     return render_template('admin_users.html', users=users, is_superadmin=(role=='superadmin'))
 
 @app.route('/admin/user/<int:id>/delete', methods=['POST'])
@@ -398,11 +590,16 @@ def teacher_upload():
             file_url = f"/static/uploads/{filename}"
             
             conn = get_db_connection()
-            cursor = conn.cursor()
+            cursor = conn.cursor(dictionary=True)
             cursor.execute("""
                 INSERT INTO resources (teacher_id, title, subject, description, department_id, year_of_study, file_url, file_type, file_size, tags)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (session['user_id'], title, subject, description, department_id, year_of_study, file_url, file_type, file_size, tags))
+            
+            # Create notification
+            teacher_name = session.get('user_name', 'Your teacher')
+            create_notification(cursor, department_id, year_of_study, f"{teacher_name} uploaded a new resource: {title}", "/student/notes")
+            
             conn.commit()
             cursor.close()
             conn.close()
@@ -420,13 +617,26 @@ def student_notes():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute("""
-        SELECT r.*, u.name as teacher_name 
-        FROM resources r
-        JOIN users u ON r.teacher_id = u.id
-        WHERE r.department_id = %s AND r.year_of_study = %s
-        ORDER BY r.created_at DESC
-    """, (session.get('user_department'), session.get('user_year')))
+    search_query = request.args.get('q', '')
+    
+    if search_query:
+        cursor.execute("""
+            SELECT r.*, u.name as teacher_name 
+            FROM resources r
+            JOIN users u ON r.teacher_id = u.id
+            WHERE r.department_id = %s AND r.year_of_study = %s
+            AND (r.title LIKE %s OR u.name LIKE %s)
+            ORDER BY r.created_at DESC
+        """, (session.get('user_department'), session.get('user_year'), f"%{search_query}%", f"%{search_query}%"))
+    else:
+        cursor.execute("""
+            SELECT r.*, u.name as teacher_name 
+            FROM resources r
+            JOIN users u ON r.teacher_id = u.id
+            WHERE r.department_id = %s AND r.year_of_study = %s
+            ORDER BY r.created_at DESC
+        """, (session.get('user_department'), session.get('user_year')))
+        
     notes = cursor.fetchall()
     
     cursor.close()
@@ -450,6 +660,7 @@ def teacher_classes():
         date = request.form['date']
         time = request.form['time']
         duration = request.form['duration']
+        max_students = request.form.get('max_students', 0)
         department_id = request.form.get('department_id')
         year_of_study = request.form.get('year_of_study')
         platform = 'Native'
@@ -457,9 +668,14 @@ def teacher_classes():
         meeting_link = f"/meeting/{room_id}"
         
         cursor.execute("""
-            INSERT INTO classes (teacher_id, title, subject, date, time, duration, platform, meeting_link, department_id, year_of_study)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (session['user_id'], title, subject, date, time, duration, platform, meeting_link, department_id, year_of_study))
+            INSERT INTO classes (teacher_id, title, subject, date, time, duration, platform, meeting_link, department_id, year_of_study, max_students)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (session['user_id'], title, subject, date, time, duration, platform, meeting_link, department_id, year_of_study, max_students))
+        
+        # Create notification
+        teacher_name = session.get('user_name', 'Your teacher')
+        create_notification(cursor, department_id, year_of_study, f"{teacher_name} scheduled a new live session: {title}", "/student/classes")
+        
         conn.commit()
         flash("Live session scheduled successfully!", "success")
         return redirect(url_for('teacher_classes'))
@@ -480,19 +696,93 @@ def student_classes():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute("""
-        SELECT c.*, u.name as teacher_name 
-        FROM classes c
-        JOIN users u ON c.teacher_id = u.id
-        WHERE c.date >= CURDATE() AND c.department_id = %s AND c.year_of_study = %s
-        ORDER BY c.date ASC, c.time ASC
-    """, (session.get('user_department'), session.get('user_year')))
+    search_query = request.args.get('q', '')
+    
+    if search_query:
+        cursor.execute("""
+            SELECT c.*, u.name as teacher_name 
+            FROM classes c
+            JOIN users u ON c.teacher_id = u.id
+            WHERE c.date >= CURDATE() AND c.department_id = %s AND c.year_of_study = %s
+            AND (c.topic LIKE %s OR u.name LIKE %s)
+            ORDER BY c.date ASC, c.time ASC
+        """, (session.get('user_department'), session.get('user_year'), f"%{search_query}%", f"%{search_query}%"))
+    else:
+        cursor.execute("""
+            SELECT c.*, u.name as teacher_name 
+            FROM classes c
+            JOIN users u ON c.teacher_id = u.id
+            WHERE c.date >= CURDATE() AND c.department_id = %s AND c.year_of_study = %s
+            ORDER BY c.date ASC, c.time ASC
+        """, (session.get('user_department'), session.get('user_year')))
+        
     classes = cursor.fetchall()
     
     cursor.close()
     conn.close()
     
     return render_template('student_classes.html', classes=classes)
+
+@app.route('/student/class/<int:id>/join')
+def student_join_class(id):
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT meeting_link FROM classes WHERE id = %s", (id,))
+    cls = cursor.fetchone()
+    
+    if cls:
+        try:
+            cursor.execute("""
+                INSERT INTO class_attendance (class_id, student_id)
+                VALUES (%s, %s)
+            """, (id, session['user_id']))
+            conn.commit()
+        except Exception as err:
+            pass # Ignore duplicate entries if they join multiple times
+            
+        cursor.close()
+        conn.close()
+        return redirect(cls['meeting_link'])
+        
+    cursor.close()
+    conn.close()
+    flash("Class not found", "error")
+    return redirect(url_for('student_classes'))
+
+@app.route('/teacher/class/<int:id>/attendance')
+def teacher_attendance(id):
+    if 'user_id' not in session or session.get('user_role') != 'teacher':
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT * FROM classes WHERE id = %s AND teacher_id = %s", (id, session['user_id']))
+    cls = cursor.fetchone()
+    
+    if not cls:
+        cursor.close()
+        conn.close()
+        flash("Class not found or access denied.", "error")
+        return redirect(url_for('teacher_classes'))
+        
+    cursor.execute("""
+        SELECT a.joined_at, u.name, u.email
+        FROM class_attendance a
+        JOIN users u ON a.student_id = u.id
+        WHERE a.class_id = %s
+        ORDER BY a.joined_at ASC
+    """, (id,))
+    attendees = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    
+    return render_template('teacher_attendance.html', cls=cls, attendees=attendees)
 
 @app.route('/resource/<int:id>')
 def resource_view(id):
@@ -650,6 +940,49 @@ def end_presentation(room_code):
     
     socketio.emit('presentation_ended', {'room': room_code}, to=room_code)
     return jsonify({"status": "success"})
+
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        new_password = request.form.get('new_password')
+        
+        try:
+            if new_password:
+                from werkzeug.security import generate_password_hash
+                hashed_pw = generate_password_hash(new_password)
+                cursor.execute("UPDATE users SET name=%s, email=%s, password_hash=%s WHERE id=%s", (name, email, hashed_pw, session['user_id']))
+            else:
+                cursor.execute("UPDATE users SET name=%s, email=%s WHERE id=%s", (name, email, session['user_id']))
+            
+            conn.commit()
+            session['user_name'] = name
+            flash("Profile updated successfully!", "success")
+        except Exception as e:
+            flash("Error updating profile. The email might already be in use.", "error")
+            
+        return redirect(url_for('profile'))
+        
+    cursor.execute("""
+        SELECT u.*, c.name as college_name, d.name as department_name 
+        FROM users u
+        LEFT JOIN colleges c ON u.college_id = c.id
+        LEFT JOIN departments d ON u.department_id = d.id
+        WHERE u.id = %s
+    """, (session['user_id'],))
+    user_data = cursor.fetchone()
+    
+    cursor.close()
+    conn.close()
+    
+    return render_template('profile.html', user=user_data)
 
 # ---------- WEBRTC & PRESENTATION SIGNALING ----------
 

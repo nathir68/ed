@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile - EduConnect{% endblock %}
+
+{% block content %}
+<div class="page-container" style="padding-top: 40px; padding-bottom: 80px; max-width: 800px; margin: 0 auto;">
+    
+    <div style="margin-bottom: 40px;">
+        <h1 style="font-size: 36px; margin-bottom: 8px;">My <span style="color: var(--color-primary);">Profile</span></h1>
+        <p style="color: var(--color-text-light);">View and manage your account details</p>
+    </div>
+
+    <!-- Profile Card -->
+    <div style="background: var(--color-white); border: 1px solid var(--color-border); border-radius: 24px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 32px;">
+        
+        <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--color-border);">
+            <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold;">
+                {{ user.name[0] | upper }}
+            </div>
+            <div>
+                <h2 style="font-size: 24px; margin-bottom: 4px;">{{ user.name }}</h2>
+                <div style="display: flex; align-items: center; gap: 12px; color: var(--color-text-light);">
+                    <span style="background: rgba(59, 130, 246, 0.1); color: var(--color-primary); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase;">
+                        {{ user.role }}
+                    </span>
+                    <span>Joined {{ user.created_at.strftime('%B %Y') if user.created_at else 'Unknown' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <form action="{{ url_for('profile') }}" method="POST">
+            <h3 style="font-size: 18px; margin-bottom: 24px;">Personal Information</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="name">Full Name</label>
+                    <input type="text" id="name" name="name" class="form-input" value="{{ user.name }}" required>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" name="email" class="form-input" value="{{ user.email }}" required>
+                </div>
+            </div>
+
+            <!-- Read-only Details depending on role -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px;">
+                {% if user.college_name %}
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Institution</label>
+                    <input type="text" class="form-input" value="{{ user.college_name }}" disabled style="background-color: rgba(0,0,0,0.02); color: var(--color-text-light);">
+                </div>
+                {% endif %}
+                
+                {% if user.department_name %}
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Department</label>
+                    <input type="text" class="form-input" value="{{ user.department_name }}" disabled style="background-color: rgba(0,0,0,0.02); color: var(--color-text-light);">
+                </div>
+                {% endif %}
+            </div>
+
+            <h3 style="font-size: 18px; margin-bottom: 24px;">Security</h3>
+            <div class="form-group" style="margin-bottom: 32px;">
+                <label class="form-label" for="new_password">New Password</label>
+                <input type="password" id="new_password" name="new_password" class="form-input" placeholder="Leave blank to keep current password">
+                <p style="font-size: 12px; color: var(--color-text-light); margin-top: 8px;">Only fill this if you want to change your password.</p>
+            </div>
+
+            <div style="text-align: right;">
+                <button type="submit" class="btn btn-primary" style="padding: 12px 32px; font-size: 16px;">Save Changes</button>
+            </div>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

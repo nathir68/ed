@@ -60,9 +60,15 @@
                                 <input type="time" name="time" class="form-input" required>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Duration (mins)</label>
-                            <input type="number" name="duration" class="form-input" value="60" required>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">Duration (mins)</label>
+                                <input type="number" name="duration" class="form-input" value="60" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">No. of Students</label>
+                                <input type="number" name="max_students" class="form-input" placeholder="e.g. 50">
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary" style="width: 100%;">Schedule Session</button>
                     </form>
@@ -76,12 +82,17 @@
                     <div style="background: var(--color-white); border: 1px solid var(--color-border); border-radius: 16px; padding: 24px;">
                         <span class="resource-badge">{{ cls.subject }}</span>
                         <h3 style="font-size: 20px; margin: 12px 0 8px 0;">{{ cls.title }}</h3>
-                        <p style="color: var(--color-text-light); font-weight: 600; font-size: 14px; margin-bottom: 16px;">
+                        <p style="color: var(--color-text-light); font-weight: 600; font-size: 14px; margin-bottom: 8px;">
                             {{ cls.date.strftime('%b %d, %Y') }} at {{ cls.time }} ({{ cls.duration }} min)
                         </p>
-                        <a href="{{ cls.meeting_link }}" target="_blank" class="btn btn-secondary" style="border-color: #3b82f6; color: #3b82f6; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; margin: 0 auto; padding: 0;" title="Open Meeting Room">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
-                        </a>
+                        <p style="color: var(--color-text-light); font-size: 14px; margin-bottom: 16px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            {{ cls.max_students }} Students Expected
+                        </p>
+                        <div style="display: flex; gap: 12px; margin-top: auto;">
+                            <a href="{{ cls.meeting_link }}" target="_blank" class="btn btn-primary" style="flex: 1; text-align: center;">Join Room</a>
+                            <a href="{{ url_for('teacher_attendance', id=cls.id) }}" class="btn btn-secondary" style="flex: 1; text-align: center;">View Attendance</a>
+                        </div>
                     </div>
                     {% else %}
                     <p style="color: var(--color-text-light);">No sessions scheduled.</p>

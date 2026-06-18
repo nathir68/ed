@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h2 style="font-size: 24px; margin-bottom: 24px; text-align: center;">Verify OTP</h2>
+        <p style="text-align: center; color: var(--color-text-light); margin-bottom: 24px;">Enter the 6-digit code sent to your email.</p>
+        
+        <form action="{{ url_for('verify_otp') }}" method="POST">
+            <input type="hidden" name="email" value="{{ email }}">
+            
+            <div class="form-group">
+                <label class="form-label">6-Digit OTP</label>
+                <input type="text" name="otp" class="form-input" pattern="[0-9]{6}" title="Please enter a 6-digit number" required style="letter-spacing: 4px; font-size: 24px; text-align: center;" maxlength="6">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 16px;">Verify Code</button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 24px;">
+            <a href="{{ url_for('forgot_password') }}" style="color: var(--color-text-light); text-decoration: none; font-size: 14px;">Didn't receive it? Resend</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -44,7 +44,7 @@
                         <span>{{ cls.duration }} min</span>
                     </div>
                     
-                    <a href="{{ cls.meeting_link }}" target="_blank" class="btn btn-primary" style="padding: 8px; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; margin: 0 auto;" title="Join Session">
+                    <a href="{{ url_for('student_join_class', id=cls.id) }}" target="_blank" class="btn btn-primary" style="padding: 8px; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; margin: 0 auto;" title="Join Session">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
                     </a>
                 </div>

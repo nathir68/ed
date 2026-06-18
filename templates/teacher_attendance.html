@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Class Attendance - EduConnect{% endblock %}
+
+{% block content %}
+<div class="page-container" style="padding-top: 40px; padding-bottom: 80px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h1 style="font-size: 36px; margin-bottom: 8px;">Session <span style="color: var(--color-primary);">Attendance</span></h1>
+            <p style="color: var(--color-text-light); font-size: 16px;">{{ cls.title }} ({{ cls.subject }}) - {{ cls.date.strftime('%B %d, %Y') }} at {{ cls.time }}</p>
+        </div>
+        <a href="{{ url_for('teacher_classes') }}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Back to Sessions
+        </a>
+    </div>
+
+    <div style="background: var(--color-white); border: 1px solid var(--color-border); border-radius: 24px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <h2 style="font-size: 20px;">Attending Students ({{ attendees|length }})</h2>
+            {% if cls.max_students %}
+                <span style="font-size: 14px; font-weight: 600; color: var(--color-text-light); background: rgba(0,0,0,0.05); padding: 4px 12px; border-radius: 20px;">
+                    Expected: {{ cls.max_students }}
+                </span>
+            {% endif %}
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--color-border);">
+                        <th style="padding: 16px; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Name</th>
+                        <th style="padding: 16px; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Email</th>
+                        <th style="padding: 16px; text-align: right; color: var(--color-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px;">Joined At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in attendees %}
+                    <tr style="border-bottom: 1px solid rgba(0,0,0,0.05); transition: background 0.2s;" onmouseover="this.style.backgroundColor='rgba(0,0,0,0.02)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <td style="padding: 16px; font-weight: 600;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                                    {{ student.name[0] | upper }}
+                                </div>
+                                {{ student.name }}
+                            </div>
+                        </td>
+                        <td style="padding: 16px; color: var(--color-text-light);">{{ student.email }}</td>
+                        <td style="padding: 16px; text-align: right; font-variant-numeric: tabular-nums;">
+                            {{ student.joined_at.strftime('%I:%M %p') }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" style="padding: 64px 16px; text-align: center; color: var(--color-text-light);">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px; opacity: 0.5;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            <h3 style="color: var(--color-text); margin-bottom: 8px;">No Students Yet</h3>
+                            <p>Attendance will appear here automatically when students join the session.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -13,8 +13,17 @@
     </aside>
     
     <div class="main-content">
-        <h1 style="font-size: 36px; margin-bottom: 8px;">Resource Library</h1>
-        <p style="color: var(--color-text-light); margin-bottom: 48px;">Browse and download study materials shared by educators.</p>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; flex-wrap: wrap; gap: 24px;">
+            <div>
+                <h1 style="font-size: 36px; margin-bottom: 8px;">Resource Library</h1>
+                <p style="color: var(--color-text-light);">Browse and download study materials shared by educators.</p>
+            </div>
+            
+            <form action="{{ url_for('student_notes') }}" method="GET" style="display: flex; gap: 8px; width: 100%; max-width: 400px;">
+                <input type="text" name="q" class="form-input" placeholder="Search resources or teachers..." value="{{ request.args.get('q', '') }}" style="margin-bottom: 0;">
+                <button type="submit" class="btn btn-primary" style="padding: 12px 24px;">Search</button>
+            </form>
+        </div>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
             {% for note in notes %}

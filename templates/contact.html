@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact Us - EduConnect{% endblock %}
+
+{% block content %}
+<div class="page-container" style="padding-top: 64px; padding-bottom: 120px; max-width: 600px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 40px;">
+        <h1 style="font-size: 40px; margin-bottom: 16px;">Contact <span style="color: var(--color-primary);">Support</span></h1>
+        <p style="color: var(--color-text-light); font-size: 16px;">Have a question or facing an issue? Send us a message and our team will get back to you.</p>
+    </div>
+    
+    <div style="background: var(--color-white); border: 1px solid var(--color-border); border-radius: 24px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <form action="{{ url_for('contact') }}" method="POST">
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label" for="name">Your Name</label>
+                <input type="text" id="name" name="name" class="form-input" required {% if session.get('user_name') %}value="{{ session.get('user_name') }}"{% endif %}>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" name="email" class="form-input" required {% if session.get('user_email') %}value="{{ session.get('user_email') }}"{% endif %}>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 32px;">
+                <label class="form-label" for="message">Message</label>
+                <textarea id="message" name="message" class="form-input" rows="5" required placeholder="How can we help you?"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 16px;">Send Message</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

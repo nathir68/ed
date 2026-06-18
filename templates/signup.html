@@ -45,6 +45,7 @@
             </select>
         </div>
         
+        {% if role != 'teacher' %}
         <div class="form-group">
             <label class="form-label">Year of Study</label>
             <select name="year_of_study" class="form-input" required>
@@ -56,6 +57,7 @@
                 <option value="Other">Other</option>
             </select>
         </div>
+        {% endif %}
 
         {% if role == 'teacher' %}
         <div class="form-group">

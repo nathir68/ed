@@ -11,7 +11,10 @@
             <input type="email" name="email" class="form-input" required>
         </div>
         <div class="form-group">
-            <label class="form-label">Password</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label class="form-label" style="margin-bottom: 0;">Password</label>
+                <a href="{{ url_for('forgot_password') }}" style="color: var(--color-primary); font-size: 14px; text-decoration: none;">Forgot Password?</a>
+            </div>
             <input type="password" name="password" class="form-input" required>
         </div>
         <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>

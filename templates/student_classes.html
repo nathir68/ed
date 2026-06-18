@@ -13,8 +13,17 @@
     </aside>
     
     <div class="main-content">
-        <h1 style="font-size: 36px; margin-bottom: 8px;">Live Sessions</h1>
-        <p style="color: var(--color-text-light); margin-bottom: 48px;">Join interactive classes scheduled by educators.</p>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; flex-wrap: wrap; gap: 24px;">
+            <div>
+                <h1 style="font-size: 36px; margin-bottom: 8px;">Live Sessions</h1>
+                <p style="color: var(--color-text-light);">Join interactive classes scheduled by educators.</p>
+            </div>
+            
+            <form action="{{ url_for('student_classes') }}" method="GET" style="display: flex; gap: 8px; width: 100%; max-width: 400px;">
+                <input type="text" name="q" class="form-input" placeholder="Search sessions or teachers..." value="{{ request.args.get('q', '') }}" style="margin-bottom: 0;">
+                <button type="submit" class="btn btn-primary" style="padding: 12px 24px;">Search</button>
+            </form>
+        </div>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
             {% for cls in classes %}
@@ -25,13 +34,18 @@
                 <h3 style="font-size: 20px; margin-bottom: 8px;">{{ cls.title }}</h3>
                 <p style="color: var(--color-text-light); margin-bottom: 24px;">By {{ cls.teacher_name }}</p>
                 
-                <div style="display: flex; gap: 16px; font-size: 14px; font-weight: 600; color: var(--color-text-light); margin-bottom: 24px; border-top: 1px solid var(--color-border); padding-top: 16px;">
+                <div style="display: flex; gap: 16px; font-size: 14px; font-weight: 600; color: var(--color-text-light); margin-bottom: 12px; border-top: 1px solid var(--color-border); padding-top: 16px;">
                     <span>{{ cls.date.strftime('%b %d, %Y') }}</span>
                     <span>{{ cls.time }}</span>
                     <span>{{ cls.duration }} min</span>
                 </div>
                 
-                <a href="{{ cls.meeting_link }}" target="_blank" class="btn btn-primary" style="width: 100%;">Join Session</a>
+                <p style="color: var(--color-text-light); font-size: 14px; margin-bottom: 24px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    {{ cls.max_students }} Students Expected
+                </p>
+                
+                <a href="{{ url_for('student_join_class', id=cls.id) }}" target="_blank" class="btn btn-primary" style="width: 100%;">Join Session</a>
             </div>
             {% else %}
             <div style="grid-column: 1 / -1; background: var(--color-white); border: 1px dashed var(--color-border); border-radius: 16px; padding: 64px; text-align: center;">

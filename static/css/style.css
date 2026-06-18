@@ -6,6 +6,18 @@
   --color-text: #FFFFFF;
   --color-text-light: rgba(255, 255, 255, 0.7);
   --color-border: rgba(255, 255, 255, 0.1); /* Glass border */
+  --body-bg: radial-gradient(circle at top left, #3a0000 0%, #140000 60%, #0a0000 100%);
+}
+
+[data-theme="light"] {
+  --color-bg: #ffffff;
+  --color-white: #ffffff;
+  --color-primary: #e60000;
+  --color-primary-light: rgba(230, 0, 0, 0.1);
+  --color-text: #1a1a1a;
+  --color-text-light: #666666;
+  --color-border: #e0e0e0;
+  --body-bg: #f5f7fa;
 }
 
 * {
@@ -16,11 +28,12 @@
 
 body {
   font-family: 'Poppins', sans-serif;
-  background: radial-gradient(circle at top left, #3a0000 0%, #140000 60%, #0a0000 100%);
+  background: var(--body-bg);
   background-attachment: fixed;
   color: var(--color-text);
   line-height: 1.5;
   min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
