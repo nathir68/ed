@@ -660,7 +660,8 @@ def teacher_classes():
         date = request.form['date']
         time = request.form['time']
         duration = request.form['duration']
-        max_students = request.form.get('max_students', 0)
+        max_students_raw = request.form.get('max_students', '')
+        max_students = int(max_students_raw) if max_students_raw.strip() else 0
         department_id = request.form.get('department_id')
         year_of_study = request.form.get('year_of_study')
         platform = 'Native'
